@@ -1,33 +1,101 @@
-from tree_sitter import Parser, Language
+# src/core/parser.py
+from tree_sitter import Parser, Language, Query, QueryCursor
 import tree_sitter_c
-import os
 
-# Build language wrapper ONCE
+# Create the Language object correctly
 C_LANGUAGE = Language(tree_sitter_c.language())
 
 def get_functions(file_path):
     parser = Parser()
     parser.language = C_LANGUAGE
-
+    
     with open(file_path, "r", encoding="utf-8") as f:
         code = f.read()
-
     tree = parser.parse(code.encode("utf-8"))
-    root = tree.root_node
 
-    functions = []
+    # Create query
+    query = Query(
+        C_LANGUAGE,
+        """
+        (function_definition
+            declarator: (function_declarator
+                declarator: (identifier) @func_name))
+        """
+    )
+    
+    # Create QueryCursor with the query
+    cursor = QueryCursor(query)
+    
+    # Execute the query on the tree
+    matches = cursor.matches(tree.root_node)
+    
+    function_names = []
+    for match in matches:
+        # match is a tuple: (pattern_index, captures_dict)
+        pattern_index, captures_dict = match
+        # Get the 'func_name' capture from the dictionary
+        if 'func_name' in captures_dict:
+            for node in captures_dict['func_name']:
+                function_name = code[node.start_byte:node.end_byte]
+                function_names.append(function_name)
+    
+    return function_names
 
-    def walk(node):
-        if node.type == "function_definition":
-            name_node = node.child_by_field_name("declarator")
-            if name_node:
-                name = code[name_node.start_byte:name_node.end_byte]
-                name = name.split("(")[0].strip()
-                functions.append(
-                    (name, node.start_point[0] + 1, node.end_point[0] + 1)
-                )
-        for child in node.children:
-            walk(child)
 
-    walk(root)
-    return functions
+def get_function_calls(file_path):
+    parser = Parser()
+    parser.language = C_LANGUAGE
+    
+    with open(file_path, "r", encoding="utf-8") as f:
+        code = f.read()
+    tree = parser.parse(code.encode("utf-8"))
+
+    # Query for function definitions and their bodies
+    func_query = Query(
+        C_LANGUAGE,
+        """
+        (function_definition
+            declarator: (function_declarator
+                declarator: (identifier) @func_name)
+            body: (compound_statement) @body)
+        """
+    )
+    
+    # Create QueryCursor with the function query
+    func_cursor = QueryCursor(func_query)
+    
+    # Execute function query
+    func_matches = func_cursor.matches(tree.root_node)
+    
+    call_map = {}
+    for pattern_index, captures_dict in func_matches:
+        if 'func_name' in captures_dict and 'body' in captures_dict:
+            func_node = captures_dict['func_name'][0]
+            body_node = captures_dict['body'][0]
+            func_name = code[func_node.start_byte:func_node.end_byte]
+
+            # Query for call expressions within the function body
+            call_query = Query(
+                C_LANGUAGE,
+                """
+                (call_expression
+                    function: (identifier) @called_name)
+                """
+            )
+            
+            # Create QueryCursor with the call query
+            call_cursor = QueryCursor(call_query)
+            
+            # Execute call query on the function body
+            call_matches = call_cursor.matches(body_node)
+            
+            called_funcs = []
+            for call_pattern_index, call_captures_dict in call_matches:
+                if 'called_name' in call_captures_dict:
+                    for called_node in call_captures_dict['called_name']:
+                        called_func = code[called_node.start_byte:called_node.end_byte]
+                        called_funcs.append(called_func)
+            
+            call_map[func_name] = called_funcs
+
+    return call_map

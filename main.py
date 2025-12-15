@@ -1,5 +1,5 @@
-import sys
-from pathlib import Path
+# import sys
+# from pathlib import Path
 from src.core.cli import app
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 import typer
 from .git_diff import get_commit_diff
 from .impact_mapper import map_changes_to_functions
+from .call_mapper import map_calls_from_impacted
 
 app = typer.Typer()
 
@@ -15,7 +16,10 @@ def analyze(
 
     for file, hunks in diff.items():
         impacted_funcs = map_changes_to_functions(repo_path, file, hunks)
+        call_map = map_calls_from_impacted(file, impacted_funcs, repo_path)
+        
         print(f"\nFile: {file}")
         print(f" Changed lines: {hunks}")
         print(f" Directly impacted functions: {impacted_funcs}")
+        print(f" Functions called by impacted functions: {call_map}")
 
