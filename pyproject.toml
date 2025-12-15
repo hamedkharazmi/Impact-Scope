@@ -1,0 +1,13 @@
+[project]
+name = "impactscope"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "gitpython>=3.1.45",
+    "networkx>=3.4.2",
+    "tree-sitter>=0.25.2",
+    "tree-sitter-c>=0.24.1",
+    "typer>=0.20.0",
+]
