@@ -84,8 +84,53 @@ uv run main.py --repo-path ../your-c-project --commit HEAD
 - `--commit` *(required)*: Commit hash or ref to analyze
 - `--depth` *(optional, default=1)*: Call graph traversal depth
 - `--visualize` *(optional)*: Generate an HTML call graph under `artifacts/`
+- `--output` *(optional, default=text)*: Output format — `text` for terminal-friendly output, `json` for machine-readable JSON
 
 If a commit contains no relevant C changes, ImpactScope reports this explicitly.
+
+### JSON Output
+
+When using `--output json`, ImpactScope emits a structured JSON document suitable for CI, automation, and downstream tooling:
+
+```bash
+uv run main.py --repo-path ../your-c-project --commit HEAD --output json
+```
+
+**JSON Schema:**
+
+```json
+{
+  "schema_version": "1.0.0",
+  "repo_path": "../your-c-project",
+  "commit": "HEAD",
+  "depth": 1,
+  "files": [
+    {
+      "file": "src/foo.c",
+      "changed_functions": ["foo", "bar"],
+      "downstream": ["baz", "qux"],
+      "upstream": ["main"],
+      "depth": 1,
+      "changed_lines": [
+        {"start": 10, "end": 15},
+        {"start": 20, "end": 25}
+      ]
+    }
+  ]
+}
+```
+
+**Fields:**
+- `schema_version`: Version of the output schema for compatibility tracking
+- `repo_path`: Repository path that was analyzed
+- `commit`: Commit hash or ref that was analyzed
+- `depth`: Analysis depth used
+- `files`: Array of per-file impact analysis results
+  - `file`: Source file path relative to repository root
+  - `changed_functions`: Functions directly affected by the commit
+  - `downstream`: Functions potentially impacted downstream (called by changed functions)
+  - `upstream`: Functions calling into the changed code
+  - `changed_lines`: Line ranges that changed (optional, included when available)
 
 ### Example output
 

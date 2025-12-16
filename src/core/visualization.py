@@ -27,7 +27,22 @@ def visualize_call_graph_pyvis(
 
     The HTML output is written under ``artifacts/{project_name}/{commit_hash}/call_graphs/``
     with a meaningful filename. JS/CSS resources are loaded from CDNs, so no local
-    ``lib/`` directory is generated. The HTML file is automatically opened in the browser."""
+    ``lib/`` directory is generated. The HTML file is automatically opened in the browser.
+
+    Args:
+        call_map: Mapping of function names to their callees.
+        changed_funcs: Set of function names that were directly changed.
+        upstream_funcs: Set of functions that call into the changed functions.
+        downstream_funcs: Set of functions called by the changed functions.
+        title: Display title for the graph.
+        depth: Traversal depth (currently unused but kept for API consistency).
+        repo_path: Path to the repository being analyzed (used to extract project name).
+        commit_hash: Commit hash being analyzed (used in filename and path).
+        source_file: Source file path (used in filename for disambiguation).
+
+    Returns:
+        Path to the generated HTML file.
+    """
     if changed_funcs is None:
         changed_funcs = set()
     if upstream_funcs is None:

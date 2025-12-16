@@ -1,5 +1,5 @@
 # src/core/cli.py
-from typing import Set
+from typing import Literal, Set
 
 import typer
 from rich.console import Console
@@ -14,6 +14,11 @@ from .impact_mapper import (
     collect_upstream_calls,
     map_changes_to_functions,
 )
+from .json_output import (
+    format_analysis_results,
+    generate_impact_json,
+    print_json_output,
+)
 from .visualization import visualize_call_graph_pyvis
 
 console = Console()
@@ -21,7 +26,14 @@ app = typer.Typer()
 
 
 def fmt_func(func_name: str) -> str:
-    """Return a Rich-friendly representation for a function name."""
+    """Return a Rich-friendly representation for a function name.
+
+    Args:
+        func_name: The function name to format.
+
+    Returns:
+        A Rich-formatted string with bold or dim styling based on importance.
+    """
     if func_name in UNIMPORTANT_FUNCS:
         return f"[dim]{func_name}[/dim]"
     return f"[bold]{func_name}[/bold]"
@@ -33,30 +45,40 @@ def analyze(
     commit: str = typer.Option(..., "--commit"),
     depth: int = typer.Option(1, "--depth", min=0),
     visualize: bool = typer.Option(False, "--visualize"),
+    output: Literal["text", "json"] = typer.Option("text", "--output"),
 ) -> None:
-    """Analyze a commit and display impacted functions and their relationships."""
-    console.print(
-        f"[bold yellow]Analyzing commit {commit} in repo {repo_path}[/bold yellow]"
-    )
+    """Analyze a commit and display impacted functions and their relationships.
+
+    Use --output json for machine-readable JSON output suitable for CI/automation.
+    """
     try:
         diff = get_commit_diff(repo_path, commit)
     except ValueError as exc:
-        console.print(f"[bold red]{exc}[/bold red]")
+        if output == "json":
+            print_json_output({"error": str(exc)})
+        else:
+            console.print(f"[bold red]{exc}[/bold red]")
         return
+
     if not diff:
-        console.print(
-            "[dim]No C or header file changes detected for this commit.[/dim]"
-        )
+        if output == "json":
+            print_json_output(format_analysis_results([], repo_path, commit, depth))
+        else:
+            console.print(
+                "[dim]No C or header file changes detected for this commit.[/dim]"
+            )
         return
 
     graph = build_call_graph_from_repo(repo_path)
+    json_results = []
 
     for file, hunks in diff.items():
         impacted_funcs = map_changes_to_functions(repo_path, file, hunks)
         if not impacted_funcs:
-            console.print(
-                f"[dim]{file}: no functions impacted by changed lines {hunks}[/dim]"
-            )
+            if output == "text":
+                console.print(
+                    f"[dim]{file}: no functions impacted by changed lines {hunks}[/dim]"
+                )
             continue
 
         call_map = map_calls_for_impacted_functions(file, impacted_funcs, repo_path)
@@ -64,28 +86,42 @@ def analyze(
         downstream: Set[str] = collect_downstream_calls(graph, impacted_funcs, depth)
         upstream: Set[str] = collect_upstream_calls(graph, impacted_funcs, depth)
 
-        console.print(f"\n[bold cyan]{file}[/bold cyan]  Changed lines: {hunks}")
-
-        for func in impacted_funcs:
-            tree = Tree(fmt_func(func), guide_style="bold bright_blue")
-
-            if upstream:
-                up_branch = tree.add(
-                    "Upstream (calls this function)", guide_style="green"
+        # Generate JSON result for this file
+        if output == "json":
+            json_results.append(
+                generate_impact_json(
+                    file=file,
+                    changed_functions=impacted_funcs,
+                    downstream=downstream,
+                    upstream=upstream,
+                    depth=depth,
+                    changed_lines=hunks,
                 )
-                for up_func in sorted(upstream):
-                    if up_func != func:
-                        up_branch.add(fmt_func(up_func))
+            )
+        else:
+            # Terminal-friendly text output
+            console.print(f"\n[bold cyan]{file}[/bold cyan]  Changed lines: {hunks}")
 
-            if downstream:
-                down_branch = tree.add(
-                    "Downstream (called by this function)", guide_style="magenta"
-                )
-                for down_func in sorted(downstream):
-                    if down_func != func:
-                        down_branch.add(fmt_func(down_func))
+            for func in impacted_funcs:
+                tree = Tree(fmt_func(func), guide_style="bold bright_blue")
 
-            console.print(tree)
+                if upstream:
+                    up_branch = tree.add(
+                        "Upstream (calls this function)", guide_style="green"
+                    )
+                    for up_func in sorted(upstream):
+                        if up_func != func:
+                            up_branch.add(fmt_func(up_func))
+
+                if downstream:
+                    down_branch = tree.add(
+                        "Downstream (called by this function)", guide_style="magenta"
+                    )
+                    for down_func in sorted(downstream):
+                        if down_func != func:
+                            down_branch.add(fmt_func(down_func))
+
+                console.print(tree)
 
         if visualize:
             visualize_call_graph_pyvis(
@@ -98,3 +134,9 @@ def analyze(
                 commit_hash=commit,
                 source_file=file,
             )
+
+    # Output JSON if requested
+    if output == "json":
+        print_json_output(
+            format_analysis_results(json_results, repo_path, commit, depth)
+        )

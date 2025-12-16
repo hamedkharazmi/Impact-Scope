@@ -13,6 +13,12 @@ def _normalize_name(name: str) -> str:
 
     Strips surrounding whitespace and any trailing ``(`` so that both
     ``foo`` and ``foo(`` become ``foo`` in the call graph.
+
+    Args:
+        name: Raw function identifier string, possibly with trailing parentheses.
+
+    Returns:
+        Normalized function name with whitespace and trailing parentheses removed.
     """
     stripped = name.strip()
     # Remove a single trailing "(" if present (covers "foo(" or "foo (" styles)
@@ -22,7 +28,14 @@ def _normalize_name(name: str) -> str:
 
 
 def get_functions(file_path: str) -> List[str]:
-    """Return all function names defined in a C source file."""
+    """Return all function names defined in a C source file.
+
+    Args:
+        file_path: Path to the C source file to parse.
+
+    Returns:
+        List of normalized function names found in the file.
+    """
     parser = Parser()
     parser.language = C_LANGUAGE
 
@@ -53,7 +66,14 @@ def get_functions(file_path: str) -> List[str]:
 
 
 def get_function_calls(file_path: str) -> Dict[str, List[str]]:
-    """Return mapping of function -> list of function names it calls."""
+    """Return mapping of function -> list of function names it calls.
+
+    Args:
+        file_path: Path to the C source file to parse.
+
+    Returns:
+        Dictionary mapping function names to lists of functions they call.
+    """
     parser = Parser()
     parser.language = C_LANGUAGE
 
@@ -113,7 +133,15 @@ class FunctionNode(TypedDict):
 
 
 def get_function_nodes(file_path: str) -> List[FunctionNode]:
-    """Return function names with start/end line numbers for a C file."""
+    """Return function names with start/end line numbers for a C file.
+
+    Args:
+        file_path: Path to the C source file to parse.
+
+    Returns:
+        List of FunctionNode dictionaries, each containing the function name,
+        start line number, and end line number.
+    """
     parser = Parser()
     parser.language = C_LANGUAGE
 

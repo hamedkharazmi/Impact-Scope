@@ -7,7 +7,19 @@ from git import BadName, Repo
 def get_commit_diff(
     repo_path: str, commit_hash: str
 ) -> Dict[str, List[Tuple[int, int]]]:
-    """Return changed line ranges for C/H files in a commit."""
+    """Return changed line ranges for C/H files in a commit.
+
+    Args:
+        repo_path: Path to the Git repository.
+        commit_hash: Commit hash or ref to analyze.
+
+    Returns:
+        Dictionary mapping file paths to lists of (start_line, end_line) tuples
+        representing changed line ranges.
+
+    Raises:
+        ValueError: If the commit hash does not exist in the repository.
+    """
     repo = Repo(repo_path)
     try:
         commit = repo.commit(commit_hash)

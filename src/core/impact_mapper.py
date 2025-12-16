@@ -10,7 +10,16 @@ from .parser import get_function_nodes
 def map_changes_to_functions(
     repo_path: str, file_path: str, hunks: Sequence[Tuple[int, int]]
 ) -> List[str]:
-    """Map changed line ranges to function names in the target file."""
+    """Map changed line ranges to function names in the target file.
+
+    Args:
+        repo_path: Path to the repository root.
+        file_path: Path to the source file relative to repository root.
+        hunks: Sequence of (start_line, end_line) tuples representing changed ranges.
+
+    Returns:
+        List of function names that overlap with the changed line ranges.
+    """
     full_path = Path(repo_path) / file_path
 
     functions = get_function_nodes(str(full_path))
@@ -27,7 +36,17 @@ def map_changes_to_functions(
 def collect_downstream_calls(
     graph: nx.DiGraph, start_funcs: Iterable[str], depth: int
 ) -> Set[str]:
-    """Traverse successors up to `depth` and return collected nodes, excluding seeds."""
+    """Traverse successors up to `depth` and return collected nodes, excluding seeds.
+
+    Args:
+        graph: Directed call graph to traverse.
+        start_funcs: Iterable of function names to start traversal from.
+        depth: Number of steps to traverse downstream.
+
+    Returns:
+        Set of function names reachable downstream from the start functions,
+        excluding the start functions themselves.
+    """
     impacted: Set[str] = set()
     frontier: Set[str] = set(start_funcs)
 
@@ -45,7 +64,17 @@ def collect_downstream_calls(
 def collect_upstream_calls(
     graph: nx.DiGraph, start_funcs: Iterable[str], depth: int
 ) -> Set[str]:
-    """Traverse predecessors up to `depth` and return collected nodes, excluding seeds."""
+    """Traverse predecessors up to `depth` and return collected nodes, excluding seeds.
+
+    Args:
+        graph: Directed call graph to traverse.
+        start_funcs: Iterable of function names to start traversal from.
+        depth: Number of steps to traverse upstream.
+
+    Returns:
+        Set of function names reachable upstream from the start functions,
+        excluding the start functions themselves.
+    """
     impacted: Set[str] = set()
     frontier: Set[str] = set(start_funcs)
 
