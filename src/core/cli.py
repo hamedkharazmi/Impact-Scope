@@ -94,4 +94,7 @@ def analyze(
                 upstream_funcs=upstream,
                 downstream_funcs=downstream,
                 title=f"Call Graph for {file}",
+                repo_path=repo_path,
+                commit_hash=commit,
+                source_file=file,
             )

@@ -1,4 +1,5 @@
 # src/core/visualization.py
+import webbrowser
 from pathlib import Path
 from typing import Iterable, Mapping, Set
 
@@ -18,13 +19,15 @@ def visualize_call_graph_pyvis(
     downstream_funcs: Set[str] | None = None,
     title: str = "Call Graph",
     depth: int = 1,
-) -> None:
+    repo_path: str | None = None,
+    commit_hash: str | None = None,
+    source_file: str | None = None,
+) -> Path:
     """Render an interactive call graph highlighting changed/upstream/downstream calls.
 
-    The HTML output is written under ``artifacts/call_graphs`` so that it can be
-    safely ignored by version control. JS/CSS resources are loaded from CDNs,
-    so no local ``lib/`` directory is generated.
-    """
+    The HTML output is written under ``artifacts/{project_name}/{commit_hash}/call_graphs/``
+    with a meaningful filename. JS/CSS resources are loaded from CDNs, so no local
+    ``lib/`` directory is generated. The HTML file is automatically opened in the browser."""
     if changed_funcs is None:
         changed_funcs = set()
     if upstream_funcs is None:
@@ -97,18 +100,54 @@ def visualize_call_graph_pyvis(
         if source in nodes_to_include and target in nodes_to_include:
             net.add_edge(source, target, color="lightgray", arrows="to")
 
-    # Always write visualizations under artifacts/call_graphs with a safe filename
-    artifacts_dir = Path("artifacts") / "call_graphs"
-    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    # Organize artifacts by project and commit for better structure
+    # Extract project name from repo_path (last folder name)
+    if repo_path:
+        project_name = Path(repo_path).name
+    else:
+        project_name = "unknown"
 
-    safe_name = (
-        title.replace(" ", "_").replace("/", "_").replace("\\", "_").replace(":", "_")
-    )
-    filename = f"{safe_name}.html"
-    out_path = artifacts_dir / filename
+    # Sanitize commit hash for filesystem (use first 8 chars for readability)
+    if commit_hash:
+        commit_short = commit_hash[:8] if len(commit_hash) >= 8 else commit_hash
+        commit_short = commit_short.replace("/", "_").replace("\\", "_")
+    else:
+        commit_short = "unknown"
+
+    # Build output directory: artifacts/{project}/{commit}/call_graphs/
+    artifacts_base = Path("artifacts") / project_name / commit_short / "call_graphs"
+    artifacts_base.mkdir(parents=True, exist_ok=True)
+
+    # Create meaningful filename: {project}_{commit}_{file}.html
+    if source_file:
+        # Extract just the filename (not full path) and sanitize
+        file_part = Path(source_file).stem.replace(" ", "_").replace("/", "_")
+        filename = f"{project_name}_{commit_short}_{file_part}.html"
+    else:
+        # Fallback to sanitized title
+        safe_title = (
+            title.replace(" ", "_")
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(":", "_")
+        )
+        filename = f"{project_name}_{commit_short}_{safe_title}.html"
+
+    out_path = artifacts_base / filename
 
     # Use CDN resources to avoid creating a local lib/ directory.
     net.write_html(str(out_path), local=False)
-    console.print(
-        f"[bold green]Interactive call graph saved as {out_path}![/bold green]"
-    )
+
+    # Automatically open the HTML file in the default browser
+    try:
+        webbrowser.open(f"file://{out_path.resolve()}")
+        console.print(
+            f"[bold green]Interactive call graph saved and opened: {out_path}[/bold green]"
+        )
+    except Exception as e:
+        console.print(
+            f"[bold green]Interactive call graph saved: {out_path}[/bold green]"
+        )
+        console.print(f"[dim]Could not open browser automatically: {e}[/dim]")
+
+    return out_path
