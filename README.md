@@ -21,7 +21,9 @@ ImpactScope is designed to:
 - Reduce cognitive load during code reviews
 - Support safer refactoring
 - Help developers reason about risk before merging changes
-- Lay the groundwork for smarter test selection and CI optimization
+- **Avoid running the entire test suite on every change** by pointing you at the parts of the system (and eventually tests) most likely to be affected
+
+The long‑term goal is to make test execution **selective and impact-aware**, so you only run the unit and integration tests that matter for a given change.
 
 This project is intentionally **static and language-aware**, avoiding runtime instrumentation or heavyweight build integration.
 
