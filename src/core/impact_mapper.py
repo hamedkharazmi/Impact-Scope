@@ -22,7 +22,7 @@ def map_changes_to_functions(repo_path, file_path, hunks):
     return list(impacted)
 
 def traverse_calls(graph, start_funcs, depth):
-    impacted = set(start_funcs)
+    impacted = set()
     frontier = set(start_funcs)
 
     for _ in range(depth):
@@ -33,4 +33,19 @@ def traverse_calls(graph, start_funcs, depth):
         frontier = next_frontier - impacted
         impacted.update(frontier)
 
-    return impacted
+    return impacted - set(start_funcs)
+
+
+def traverse_upstream_calls(graph, start_funcs, depth):
+    impacted = set()
+    frontier = set(start_funcs)
+
+    for _ in range(depth):
+        next_frontier = set()
+        for func in frontier:
+            if func in graph:
+                next_frontier.update(graph.predecessors(func))
+        frontier = next_frontier - impacted
+        impacted.update(frontier)
+
+    return impacted - set(start_funcs)
