@@ -38,11 +38,27 @@ def analyze(
     console.print(
         f"[bold yellow]Analyzing commit {commit} in repo {repo_path}[/bold yellow]"
     )
-    diff = get_commit_diff(repo_path, commit)
+    try:
+        diff = get_commit_diff(repo_path, commit)
+    except ValueError as exc:
+        console.print(f"[bold red]{exc}[/bold red]")
+        return
+    if not diff:
+        console.print(
+            "[dim]No C or header file changes detected for this commit.[/dim]"
+        )
+        return
+
     graph = build_call_graph_from_repo(repo_path)
 
     for file, hunks in diff.items():
         impacted_funcs = map_changes_to_functions(repo_path, file, hunks)
+        if not impacted_funcs:
+            console.print(
+                f"[dim]{file}: no functions impacted by changed lines {hunks}[/dim]"
+            )
+            continue
+
         call_map = map_calls_for_impacted_functions(file, impacted_funcs, repo_path)
 
         downstream: Set[str] = collect_downstream_calls(graph, impacted_funcs, depth)

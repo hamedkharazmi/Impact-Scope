@@ -8,6 +8,19 @@ from tree_sitter import Language, Parser, Query, QueryCursor
 C_LANGUAGE = Language(tree_sitter_c.language())
 
 
+def _normalize_name(name: str) -> str:
+    """Normalize a function-like identifier to a canonical name.
+
+    Strips surrounding whitespace and any trailing ``(`` so that both
+    ``foo`` and ``foo(`` become ``foo`` in the call graph.
+    """
+    stripped = name.strip()
+    # Remove a single trailing "(" if present (covers "foo(" or "foo (" styles)
+    if stripped.endswith("("):
+        stripped = stripped[:-1].rstrip()
+    return stripped
+
+
 def get_functions(file_path: str) -> List[str]:
     """Return all function names defined in a C source file."""
     parser = Parser()
@@ -33,8 +46,8 @@ def get_functions(file_path: str) -> List[str]:
     for _, captures_dict in matches:
         if "func_name" in captures_dict:
             for node in captures_dict["func_name"]:
-                function_name = code[node.start_byte : node.end_byte]
-                function_names.append(function_name)
+                raw_name = code[node.start_byte : node.end_byte]
+                function_names.append(_normalize_name(raw_name))
 
     return function_names
 
@@ -66,7 +79,7 @@ def get_function_calls(file_path: str) -> Dict[str, List[str]]:
         if "func_name" in captures_dict and "body" in captures_dict:
             func_node = captures_dict["func_name"][0]
             body_node = captures_dict["body"][0]
-            func_name = code[func_node.start_byte : func_node.end_byte]
+            func_name = _normalize_name(code[func_node.start_byte : func_node.end_byte])
 
             call_query = Query(
                 C_LANGUAGE,
@@ -83,10 +96,8 @@ def get_function_calls(file_path: str) -> Dict[str, List[str]]:
             for _, call_captures_dict in call_matches:
                 if "called_name" in call_captures_dict:
                     for called_node in call_captures_dict["called_name"]:
-                        called_func = code[
-                            called_node.start_byte : called_node.end_byte
-                        ]
-                        called_funcs.append(called_func)
+                        called_raw = code[called_node.start_byte : called_node.end_byte]
+                        called_funcs.append(_normalize_name(called_raw))
 
             call_map[func_name] = called_funcs
 
@@ -125,7 +136,7 @@ def get_function_nodes(file_path: str) -> List[FunctionNode]:
     for _, captures_dict in matches:
         if "func_name" in captures_dict:
             for node in captures_dict["func_name"]:
-                func_name = code[node.start_byte : node.end_byte]
+                func_name = _normalize_name(code[node.start_byte : node.end_byte])
                 start_line = node.start_point[0] + 1  # Tree-sitter lines start at 0
                 end_line = node.end_point[0] + 1
                 functions.append(
