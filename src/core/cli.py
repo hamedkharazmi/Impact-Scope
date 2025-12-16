@@ -1,39 +1,81 @@
 # src/core/cli.py
-import typer
-from .git_diff import get_commit_diff
-from .impact_mapper import map_changes_to_functions, traverse_calls, traverse_upstream_calls
-from .call_mapper import map_calls_from_impacted
-from .call_graph import visualize_call_graph, build_project_call_graph
+from typing import Set
 
+import typer
+from rich.console import Console
+from rich.tree import Tree
+
+from .call_graph import build_call_graph_from_repo
+from .call_mapper import map_calls_for_impacted_functions
+from .constants import UNIMPORTANT_FUNCS
+from .git_diff import get_commit_diff
+from .impact_mapper import (
+    collect_downstream_calls,
+    collect_upstream_calls,
+    map_changes_to_functions,
+)
+from .visualization import visualize_call_graph_pyvis
+
+console = Console()
 app = typer.Typer()
+
+
+def fmt_func(func_name: str) -> str:
+    """Return a Rich-friendly representation for a function name."""
+    if func_name in UNIMPORTANT_FUNCS:
+        return f"[dim]{func_name}[/dim]"
+    return f"[bold]{func_name}[/bold]"
+
 
 @app.command()
 def analyze(
     repo_path: str = typer.Option(..., "--repo-path"),
     commit: str = typer.Option(..., "--commit"),
     depth: int = typer.Option(1, "--depth", min=0),
-    visualize: bool = typer.Option(False, "--visualize")
-):
-    print(f"Analyzing commit {commit} in repo {repo_path}")
+    visualize: bool = typer.Option(False, "--visualize"),
+) -> None:
+    """Analyze a commit and display impacted functions and their relationships."""
+    console.print(
+        f"[bold yellow]Analyzing commit {commit} in repo {repo_path}[/bold yellow]"
+    )
     diff = get_commit_diff(repo_path, commit)
-
-    graph = build_project_call_graph(repo_path)
+    graph = build_call_graph_from_repo(repo_path)
 
     for file, hunks in diff.items():
         impacted_funcs = map_changes_to_functions(repo_path, file, hunks)
-        call_map = map_calls_from_impacted(file, impacted_funcs, repo_path)
+        call_map = map_calls_for_impacted_functions(file, impacted_funcs, repo_path)
 
-        # Downstream impact
-        all_impacted_downstream = traverse_calls(graph, impacted_funcs, depth)
-        # Upstream impact
-        all_impacted_upstream = traverse_upstream_calls(graph, impacted_funcs, depth)
-        
-        print(f"\nFile: {file}")
-        print(f" Changed lines: {hunks}")
-        print(f" Directly impacted functions: {impacted_funcs}")
-        print(f" Functions called by impacted functions: {call_map}")
-        print(f" Impacted downstream (depth={depth}): {sorted(all_impacted_downstream)}")
-        print(f" Impacted upstream (for tests, depth={depth}): {sorted(all_impacted_upstream)}")
-        
+        downstream: Set[str] = collect_downstream_calls(graph, impacted_funcs, depth)
+        upstream: Set[str] = collect_upstream_calls(graph, impacted_funcs, depth)
+
+        console.print(f"\n[bold cyan]{file}[/bold cyan]  Changed lines: {hunks}")
+
+        for func in impacted_funcs:
+            tree = Tree(fmt_func(func), guide_style="bold bright_blue")
+
+            if upstream:
+                up_branch = tree.add(
+                    "Upstream (calls this function)", guide_style="green"
+                )
+                for up_func in sorted(upstream):
+                    if up_func != func:
+                        up_branch.add(fmt_func(up_func))
+
+            if downstream:
+                down_branch = tree.add(
+                    "Downstream (called by this function)", guide_style="magenta"
+                )
+                for down_func in sorted(downstream):
+                    if down_func != func:
+                        down_branch.add(fmt_func(down_func))
+
+            console.print(tree)
+
         if visualize:
-            visualize_call_graph(call_map, title=f"Call Graph for {file}")
+            visualize_call_graph_pyvis(
+                call_map,
+                changed_funcs=set(impacted_funcs),
+                upstream_funcs=upstream,
+                downstream_funcs=downstream,
+                title=f"Call Graph for {file}",
+            )
