@@ -114,7 +114,25 @@ This shows both **who depends on the changed function** (upstream) and **what it
 
 ## Architecture Overview
 
-ImpactScope is structured as a pipeline:
+ImpactScope processes C code changes in a structured pipeline, from diff analysis to impact visualization:
+
+
+```mermaid
+graph TD
+    A[Git Repo + Commit] --> B[git_diff.py<br/>Extract Changed Lines]
+    B --> C[parser.py<br/>AST Parser<br/>Tree-sitter]
+    C --> D[call_graph.py<br/>Build Call Graph<br/>NetworkX]
+    C --> E[impact_mapper.py<br/>Map Lines to Functions]
+    E --> F[call_mapper.py<br/>Extract Function Calls]
+    D --> G[impact_mapper.py<br/>Upstream/Downstream Analysis]
+    F --> G
+    G --> H[cli.py<br/>CLI Presentation]
+    G --> I[visualization.py<br/>HTML Graph Generation]
+    H --> J[Terminal Output]
+    I --> K[HTML Artifacts]
+```
+
+The pipeline flow:
 
 1. **Git diff analysis** – Identify changed files and line ranges
 2. **AST parsing** – Locate functions and call expressions using Tree-sitter
