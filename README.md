@@ -1,71 +1,45 @@
-## ImpactScope
+# ImpactScope
 
-**ImpactScope** is a developer-focused static analysis tool that helps you understand the *blast radius* of code changes in large C codebases. Given a Git commit, it identifies which functions are directly modified, traces how those changes propagate through the call graph, and highlights which parts of the system are most likely affected.
+**ImpactScope** is a developer-first **Change Impact Analysis (CIA)** tool for large C codebases.
 
-Rather than focusing on individual files or diffs in isolation, ImpactScope takes a **project-level view**: it connects Git history, abstract syntax trees (ASTs), and call graph analysis to answer a practical question:
+Given a Git commit (or diff), ImpactScope performs deterministic static analysis to answer a simple but expensive question:
 
-> *“If I change this code, what else should I worry about?”*
+> **For this change, what code is impacted — and what should I review or test?**
 
----
-
-## Why ImpactScope exists
-
-In large or long-lived C projects:
-
-- A small change can silently affect distant parts of the system.
-- Call chains are often implicit and poorly documented.
-- Reviewing diffs alone does not reveal downstream or upstream effects.
-
-ImpactScope is designed to:
-
-- Reduce cognitive load during code reviews
-- Support safer refactoring
-- Help developers reason about risk before merging changes
-- **Avoid running the entire test suite on every change** by pointing you at the parts of the system (and eventually tests) most likely to be affected
-
-The long‑term goal is to make test execution **selective and impact-aware**, so you only run the unit and integration tests that matter for a given change.
-
-This project is intentionally **static and language-aware**, avoiding runtime instrumentation or heavyweight build integration.
+It bridges Git diffs, AST-level code structure, and call-graph analysis to compute the *blast radius* of a change, without relying on heuristics or AI hallucinations.
 
 ---
 
-## Current capabilities
+## Why ImpactScope Exists
 
-### Change-aware impact analysis
+In large C projects, even small changes can have non-obvious downstream effects:
 
-- Parses a Git commit and extracts **changed line ranges** for C source files.
-- Maps those line ranges to the **functions they belong to** using Tree-sitter ASTs.
+- A modified helper function may impact dozens of callers
+- A seemingly local refactor can propagate across modules
+- Running the full test suite is slow and often unnecessary
 
-### Call graph construction
+Industrial tools (e.g. certification-grade Change Impact Analysis systems) solve this problem, but are:
 
-- Builds a function-level call graph from C source files.
-- Tracks **direct callees** and **callers** of impacted functions, with configurable depth.
+- Enterprise-focused
+- GUI-heavy
+- Closed-source
+- Expensive and hard to integrate into modern CI workflows
 
-### Impact reporting
-
-For each affected file, ImpactScope reports:
-
-- Directly impacted functions
-- Functions called by those functions
-- Functions that call into those functions (upstream)
-- Aggregated impact set at a chosen depth
-
-This provides a concrete, explainable view of how a change propagates through the code.
+**ImpactScope focuses on the same core problem, but with a developer-first mindset.**
 
 ---
 
-## Example output
+## Current Capabilities
 
-```text
-File: src/auth/auth.c
- Changed lines: [(5, 10)]
- Directly impacted functions: ['login_user']
- Functions called by impacted functions:
-   login_user -> ['connect_db', 'query_user', 'printf']
- Impacted (depth=1): ['login_user', 'connect_db', 'query_user', 'printf']
-```
-
-This tells you, at a glance, which functional areas may require review, testing, or additional scrutiny.
+- Commit-aware change detection (Git diff parsing)
+- Line-to-function mapping via AST (Tree-sitter)
+- Function-level call graph construction
+- **Downstream impact analysis** (functions called by a change)
+- **Upstream impact analysis** (functions that call into a change)
+- Depth-limited traversal to control noise
+- Basic standard-library filtering
+- CLI-first workflow
+- Optional HTML call-graph visualization
 
 ---
 
@@ -77,19 +51,20 @@ This tells you, at a glance, which functional areas may require review, testing,
 - Git
 - A C repository to analyze
 
-### Using `uv` (recommended)
+### Setup (recommended: `uv`)
 
 ```bash
 uv sync
 ```
 
-This installs all dependencies declared in `pyproject.toml` and manages the virtual environment automatically.
+This installs dependencies from `pyproject.toml` and manages the virtual environment automatically.
 
-If you prefer a manual virtualenv:
+Alternatively, using a virtual environment:
 
 ```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1  # PowerShell on Windows
+source .venv/bin/activate   # Linux / macOS
+# or .\.venv\Scripts\Activate.ps1 on Windows
 pip install -e .
 ```
 
@@ -97,28 +72,47 @@ pip install -e .
 
 ## Usage
 
-Run the analyzer against a repository and commit:
+Run ImpactScope against a repository and a commit:
 
 ```bash
-uv run main.py --repo-path ../c-impact-demo --commit HEAD
+uv run main.py --repo-path ../your-c-project --commit HEAD
 ```
 
-### CLI options
+### Common options
 
 - `--repo-path` *(required)*: Path to the target Git repository
 - `--commit` *(required)*: Commit hash or ref to analyze
-- `--depth` *(optional, default=1)*: How far to propagate impact through the call graph
-- `--visualize` *(optional, default=False)*: Generate an interactive HTML call graph under `artifacts/call_graphs/`
+- `--depth` *(optional, default=1)*: Call graph traversal depth
+- `--visualize` *(optional)*: Generate an HTML call graph under `artifacts/`
 
-Behavior notes:
+If a commit contains no relevant C changes, ImpactScope reports this explicitly.
 
-- If there are no `.c`/`.h` changes in the commit, the CLI will say so explicitly.
-- If changed lines do not fall inside any function, that is reported per file.
-- If the commit hash does not exist, you get a clear, human-readable error instead of a traceback.
+### Example output
+
+```text
+src/auth/auth.c  Changed lines: [(5, 10)]
+login_user
+┣━━ Upstream (calls this function)
+┃   ┗━━ handle_request
+┗━━ Downstream (called by this function)
+    ┣━━ connect_db
+    ┣━━ printf
+    ┗━━ query_user
+
+src/net/net.c  Changed lines: [(3, 8)]
+handle_request
+┣━━ Upstream (calls this function)
+┃   ┗━━ main
+┗━━ Downstream (called by this function)
+    ┣━━ login_user
+    ┗━━ printf
+```
+
+This shows both **who depends on the changed function** (upstream) and **what it depends on** (downstream), giving a concrete view of how a change propagates through the system.
 
 ---
 
-## Architecture overview
+## Architecture Overview
 
 ImpactScope is structured as a pipeline:
 
@@ -140,51 +134,63 @@ Key modules:
 
 ---
 
-## Design principles
+## Design Philosophy
 
-- **Language-aware, not regex-based** – Uses ASTs instead of brittle text matching
-- **Incremental depth** – Starts shallow (depth=1) but scales naturally
-- **Explainable output** – Every result can be traced back to code and calls
-- **Tooling-friendly** – Intended to integrate with CI, code review, and developer workflows
+- **Determinism over magic**
+- **Static analysis first, AI second**
+- **Explainability over prediction**
+- **Project-level reasoning over file-level diffs**
+- **CLI and automation over GUI-heavy workflows**
+
+This approach mirrors how industrial Change Impact Analysis tools are built, while remaining lightweight and developer-friendly.
 
 ---
 
-## Roadmap / future work
+## Roadmap / Future Work
 
 ImpactScope is intentionally built as a foundation. Planned and possible extensions include:
 
-### Deeper impact analysis
+### Short-term / Near-term
 
-- More advanced multi-hop call propagation and pruning strategies
-- Smarter handling of utility/low-signal functions
+- Multi-file / cross-module graph merging
+- Noise reduction heuristics
+- Structured JSON output for CI usage
+- Test impact heuristics
 
-### Test impact analysis
+### Medium-term
 
-- Map impacted functions to relevant test files
-- Heuristic-based test selection (naming, paths, symbols)
-- Optional AST parsing of test code
-
-### CI & automation
-
-- Machine-readable JSON output
-- GitHub/GitLab CI integration
-- Fail or warn on high-impact changes
-
-### Visualization & UX
-
+- Lightweight requirement trace tags (e.g. comments in code)
 - Richer interactive call graphs and summaries
-- Impact summaries per commit and per file
 - Comparison of impact across commits
 
-### Language support
+### Long-term / Exploratory
 
-- C++ (classes, methods, namespaces)
-- Other Tree-sitter–supported languages
+- AI-assisted explanations:
+  - Why a change is risky
+  - What reviewers should focus on
+- Support for additional languages (e.g., C++)
 
 ---
 
-## Project status
+## Status
 
-ImpactScope is currently in **active development** and should be considered an evolving prototype. The focus so far has been on correctness, clarity, and architectural soundness rather than feature completeness.
+ImpactScope is currently a **working prototype** under active development.
 
-Feedback, experimentation, and extension are encouraged.
+The focus so far has been on **correctness, clarity, and architectural soundness** rather than feature completeness. The goal is to evolve ImpactScope into a **portfolio-grade Change Impact Analysis tool** that demonstrates:
+
+- Static analysis fundamentals
+- Call graph reasoning
+- Deterministic tooling design
+- Realistic CI and developer workflows
+
+---
+
+## Inspiration
+
+This project is inspired by **industrial Change Impact Analysis (CIA) tools** used in large-scale and safety-critical systems (e.g., certification-grade static analysis platforms), but is intentionally focused on **developer-first workflows, open tooling, and CI-friendly usage**.
+
+---
+
+## Disclaimer
+
+ImpactScope is not intended for certification or compliance use. It is a research and engineering project designed to explore *correct* approaches to change impact analysis.
