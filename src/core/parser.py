@@ -99,3 +99,37 @@ def get_function_calls(file_path):
             call_map[func_name] = called_funcs
 
     return call_map
+
+
+def get_function_nodes(file_path):
+    """
+    Return functions with start/end line numbers
+    """
+    parser = Parser()
+    parser.language = C_LANGUAGE
+
+    with open(file_path, "r", encoding="utf-8") as f:
+        code = f.read()
+    tree = parser.parse(code.encode("utf-8"))
+
+    query = Query(
+        C_LANGUAGE,
+        """
+        (function_definition
+            declarator: (function_declarator
+                declarator: (identifier) @func_name))
+        """
+    )
+    cursor = QueryCursor(query)
+    matches = cursor.matches(tree.root_node)
+
+    functions = []
+    for match in matches:
+        _, captures_dict = match
+        if 'func_name' in captures_dict:
+            for node in captures_dict['func_name']:
+                func_name = code[node.start_byte:node.end_byte]
+                start_line = node.start_point[0] + 1  # Tree-sitter lines start at 0
+                end_line = node.end_point[0] + 1
+                functions.append({'name': func_name, 'start': start_line, 'end': end_line})
+    return functions

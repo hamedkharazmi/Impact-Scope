@@ -3,6 +3,7 @@ import typer
 from .git_diff import get_commit_diff
 from .impact_mapper import map_changes_to_functions
 from .call_mapper import map_calls_from_impacted
+from .call_graph import visualize_call_graph
 
 app = typer.Typer()
 
@@ -22,4 +23,5 @@ def analyze(
         print(f" Changed lines: {hunks}")
         print(f" Directly impacted functions: {impacted_funcs}")
         print(f" Functions called by impacted functions: {call_map}")
+        visualize_call_graph(call_map, title=f"Call Graph for {file}")
 
