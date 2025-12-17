@@ -6,7 +6,7 @@ Given a Git commit (or diff), ImpactScope performs deterministic static analysis
 
 > **For this change, what code is impacted — and what should I review or test?**
 
-It bridges Git diffs, AST-level code structure, and call-graph analysis to compute the *blast radius* of a change, without relying on heuristics or AI hallucinations.
+It bridges Git diffs, AST-level code structure, and call-graph analysis to compute the *blast radius* of a change.
 
 ---
 
@@ -209,29 +209,61 @@ This approach mirrors how industrial Change Impact Analysis tools are built, whi
 
 ---
 
-## Roadmap / Future Work
+## Future Directions
 
-ImpactScope is intentionally built as a foundation. Planned and possible extensions include:
+ImpactScope is currently an MVP focused on correctness, determinism, and architectural clarity.
+The following items outline possible next steps and directions, based on review of industrial Change Impact Analysis tools and real-world workflows. They are intentionally non-binding and exploratory.
 
-### Short-term / Near-term
+### Near-Term Extensions (Natural Next Steps)
 
-- Multi-file / cross-module graph merging
-- Noise reduction heuristics
-- Structured JSON output for CI usage
-- Test impact heuristics
+These represent obvious follow-ups once deterministic impact data is available.
 
-### Medium-term
+- Impact scoring and basic risk categorization (e.g. LOW / MEDIUM / HIGH)
+- Human-readable summaries explaining why a change is risky
+- Noise reduction heuristics to prioritize relevant impact paths
+- Improved output formatting for CI and automation use
 
-- Lightweight requirement trace tags (e.g. comments in code)
-- Richer interactive call graphs and summaries
-- Comparison of impact across commits
+### Industry-Inspired Capabilities (Observed in Mature Tools)
 
-### Long-term / Exploratory
+Based on reviewing established CIA tools (e.g. certification-grade and enterprise systems), potential directions include:
 
-- AI-assisted explanations:
-  - Why a change is risky
-  - What reviewers should focus on
-- Support for additional languages (e.g., C++)
+- Change-based test selection and prioritization
+- Baseline-to-baseline impact comparison
+- Cross-module and system-level impact aggregation
+- Lightweight traceability between changes, impact, and tests
+
+These are not goals of the MVP, but provide context for how ImpactScope could evolve.
+
+### AI-Assisted Enhancements (Optional & Assistive)
+
+AI is considered only as a supporting layer, not part of core analysis.
+
+Possible roles include:
+
+- Explaining impact paths and propagation in natural language
+- Suggesting review or testing focus areas
+- Summarizing impact results for CI or pull request discussions
+
+Beyond LLMs, learning-based approaches could be explored in the future:
+
+- Learning which impact patterns are frequently low-risk vs high-risk
+- Ranking or prioritizing impact paths based on historical data
+- Assisting in noise reduction without removing deterministic results
+
+AI components would operate strictly on top of structured output, not replace static analysis.
+
+### Long-Term Outlook
+
+If ImpactScope grows beyond MVP scope, longer-term directions may include:
+
+- Data-flow or control-flow–aware impact propagation
+- Scalable graph backends for large codebases
+- Support for additional languages
+
+**Positioning Note**
+
+This roadmap is intended to show awareness and design thinking, not fixed commitments.
+ImpactScope remains an MVP focused on building a correct, deterministic foundation before exploring advanced capabilities.
 
 ---
 
@@ -245,15 +277,3 @@ The focus so far has been on **correctness, clarity, and architectural soundness
 - Call graph reasoning
 - Deterministic tooling design
 - Realistic CI and developer workflows
-
----
-
-## Inspiration
-
-This project is inspired by **industrial Change Impact Analysis (CIA) tools** used in large-scale and safety-critical systems (e.g., certification-grade static analysis platforms), but is intentionally focused on **developer-first workflows, open tooling, and CI-friendly usage**.
-
----
-
-## Disclaimer
-
-ImpactScope is not intended for certification or compliance use. It is a research and engineering project designed to explore *correct* approaches to change impact analysis.

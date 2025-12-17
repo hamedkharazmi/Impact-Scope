@@ -8,6 +8,7 @@ from rich.console import Console
 
 from .call_graph import build_call_graph_from_repo
 from .constants import COLORS, UNIMPORTANT_FUNCS
+from .path_utils import get_file_url, sanitize_filename
 
 console = Console()
 
@@ -125,7 +126,7 @@ def visualize_call_graph_pyvis(
     # Sanitize commit hash for filesystem (use first 8 chars for readability)
     if commit_hash:
         commit_short = commit_hash[:8] if len(commit_hash) >= 8 else commit_hash
-        commit_short = commit_short.replace("/", "_").replace("\\", "_")
+        commit_short = sanitize_filename(commit_short)
     else:
         commit_short = "unknown"
 
@@ -136,17 +137,12 @@ def visualize_call_graph_pyvis(
     # Create meaningful filename: {project}_{commit}_{file}.html
     if source_file:
         # Extract just the filename (not full path) and sanitize
-        file_part = Path(source_file).stem.replace(" ", "_").replace("/", "_")
-        filename = f"{project_name}_{commit_short}_{file_part}.html"
+        file_part = sanitize_filename(Path(source_file).stem)
+        filename = f"{sanitize_filename(project_name)}_{commit_short}_{file_part}.html"
     else:
         # Fallback to sanitized title
-        safe_title = (
-            title.replace(" ", "_")
-            .replace("/", "_")
-            .replace("\\", "_")
-            .replace(":", "_")
-        )
-        filename = f"{project_name}_{commit_short}_{safe_title}.html"
+        safe_title = sanitize_filename(title)
+        filename = f"{sanitize_filename(project_name)}_{commit_short}_{safe_title}.html"
 
     out_path = artifacts_base / filename
 
@@ -155,7 +151,9 @@ def visualize_call_graph_pyvis(
 
     # Automatically open the HTML file in the default browser
     try:
-        webbrowser.open(f"file://{out_path.resolve()}")
+        # Use pathlib's as_uri() for cross-platform file:// URLs
+        file_url = get_file_url(out_path)
+        webbrowser.open(file_url)
         console.print(
             f"[bold green]Interactive call graph saved and opened: {out_path}[/bold green]"
         )
