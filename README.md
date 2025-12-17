@@ -61,22 +61,16 @@ This installs dependencies from `pyproject.toml` and manages the virtual environ
 
 ### Testing
 
-ImpactScope includes a comprehensive test suite covering the core static analysis functionality:
+ImpactScope includes a comprehensive test suite covering the core static analysis functionality.
 
+For development, install additional dependencies:
 ```bash
-# Install test dependencies (optional - only for development/testing)
-uv sync --extra test
-
-# Install development dependencies (includes mypy for type checking)
-uv sync --extra dev
-
-# Or install both test and dev dependencies
 uv sync --extra test --extra dev
+```
 
-# Run the CLI
-uv run -m src.main --repo-path /path/to/repo --commit HEAD
-
-# Run tests
+Run tests:
+```bash
+# Run the full test suite
 uv run run_tests.py
 
 # Or run directly with pytest
