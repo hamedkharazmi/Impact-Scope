@@ -247,6 +247,22 @@ This approach mirrors how industrial Change Impact Analysis tools are built, whi
 
 ---
 
+## Documentation
+
+For more detailed information, see our comprehensive documentation:
+
+- **[Getting Started](docs/getting-started.md)** - Quick start guide and installation
+- **[User Guide](docs/user-guide.md)** - Detailed usage instructions and examples
+- **[API Reference](docs/api-reference.md)** - Complete CLI options and JSON schema
+- **[Architecture](docs/architecture.md)** - Technical deep dive
+- **[CI Integration](docs/ci-integration.md)** - Automation and CI/CD setup
+- **[Visualization Guide](docs/visualization-guide.md)** - HTML call graph usage
+- **[Contributing](docs/contributing.md)** - Development setup and guidelines
+- **[Roadmap](docs/roadmap.md)** - Future directions and vision
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and debugging
+
+---
+
 ## Future Directions
 
 ImpactScope is currently an MVP focused on correctness, determinism, and architectural clarity.
