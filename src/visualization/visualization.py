@@ -1,4 +1,4 @@
-# src/core/visualization.py
+# src/visualization/visualization.py
 import webbrowser
 from pathlib import Path
 from typing import Iterable, Mapping, Set
@@ -6,9 +6,9 @@ from typing import Iterable, Mapping, Set
 from pyvis.network import Network
 from rich.console import Console
 
-from .call_graph import build_call_graph_from_repo
-from .constants import COLORS, UNIMPORTANT_FUNCS
-from .path_utils import get_file_url, sanitize_filename
+from ..core.call_graph import build_call_graph_from_repo
+from ..core.constants import COLORS, UNIMPORTANT_FUNCS
+from ..utils.path_utils import get_file_url, sanitize_filename
 
 console = Console()
 

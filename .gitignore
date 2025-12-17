@@ -20,5 +20,11 @@ __pycache__/
 artifacts/
 lib/
 
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+coverage.xml
+
 # Node/yarn caches if introduced later
 node_modules/

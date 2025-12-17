@@ -1,25 +1,25 @@
-# src/core/cli.py
+# src/cli/cli.py
 from typing import Literal, Set
 
 import typer
 from rich.console import Console
 from rich.tree import Tree
 
-from .call_graph import build_call_graph_from_repo
-from .call_mapper import map_calls_for_impacted_functions
-from .constants import UNIMPORTANT_FUNCS
-from .git_diff import get_commit_diff
-from .impact_mapper import (
+from ..core.call_graph import build_call_graph_from_repo
+from ..core.call_mapper import map_calls_for_impacted_functions
+from ..core.constants import UNIMPORTANT_FUNCS
+from ..core.git_diff import get_commit_diff
+from ..core.impact_mapper import (
     collect_downstream_calls,
     collect_upstream_calls,
     map_changes_to_functions,
 )
-from .json_output import (
+from ..output.json_output import (
     format_analysis_results,
     generate_impact_json,
     print_json_output,
 )
-from .visualization import visualize_call_graph_pyvis
+from ..visualization.visualization import visualize_call_graph_pyvis
 
 console = Console()
 app = typer.Typer()

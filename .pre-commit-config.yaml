@@ -12,10 +12,12 @@ repos:
     rev: v1.18.1   # check for latest stable
     hooks:
       - id: mypy
+        files: ^src/
+        args: [--explicit-package-bases, --config-file=mypy.ini]
         additional_dependencies:
           - types-requests
           - types-PyYAML
-          # add stubs your project needs here
+          - types-setuptools  # For missing imports
 
   # --- General Code Hygiene ---
   - repo: https://github.com/pre-commit/pre-commit-hooks

@@ -1,6 +1,6 @@
 # import sys
 # from pathlib import Path
-from src.core.cli import app
+from .cli.cli import app
 
 if __name__ == "__main__":
     app()

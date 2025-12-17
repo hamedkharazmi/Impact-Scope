@@ -11,6 +11,7 @@ def sanitize_filename(name: str) -> str:
     Removes or replaces characters that are invalid on Windows, Linux, or macOS:
     - Windows: < > : " / \ | ? *
     - All platforms: null bytes, control characters
+    - Spaces are removed entirely (not replaced with underscores)
 
     Args:
         name: The string to sanitize.
@@ -18,23 +19,27 @@ def sanitize_filename(name: str) -> str:
     Returns:
         A sanitized string safe for use as a filename.
     """
+    # First, strip leading/trailing whitespace and dots
+    sanitized = name.strip(" .")
+
     # Replace invalid characters with underscore
     # Windows invalid: < > : " / \ | ? *
-    # Also handle null bytes and control characters
+    # All platforms: null bytes, control characters
     invalid_chars = r'[<>:"/\\|?*\x00-\x1f]'
-    sanitized = re.sub(invalid_chars, "_", name)
-
-    # Remove leading/trailing dots and spaces (Windows doesn't allow these)
-    sanitized = sanitized.strip(". ")
+    sanitized = re.sub(invalid_chars, "_", sanitized)
 
     # Replace multiple consecutive underscores with a single one
     sanitized = re.sub(r"_+", "_", sanitized)
+
+    # Remove leading/trailing underscores (but keep internal ones)
+    sanitized = sanitized.strip("_")
 
     # Ensure the name isn't empty after sanitization
     if not sanitized:
         sanitized = "unnamed"
 
-    # Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+    # Check for reserved names (before extension, if any)
+    base_name = sanitized.split(".")[0] if "." in sanitized else sanitized
     reserved_names = {
         "CON",
         "PRN",
@@ -59,7 +64,7 @@ def sanitize_filename(name: str) -> str:
         "LPT8",
         "LPT9",
     }
-    if sanitized.upper() in reserved_names:
+    if base_name.upper() in reserved_names:
         sanitized = f"_{sanitized}"
 
     return sanitized

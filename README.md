@@ -59,6 +59,36 @@ uv sync
 
 This installs dependencies from `pyproject.toml` and manages the virtual environment automatically.
 
+### Testing
+
+ImpactScope includes a comprehensive test suite covering the core static analysis functionality:
+
+```bash
+# Install test dependencies (optional - only for development/testing)
+uv sync --extra test
+
+# Install development dependencies (includes mypy for type checking)
+uv sync --extra dev
+
+# Or install both test and dev dependencies
+uv sync --extra test --extra dev
+
+# Run the CLI
+uv run -m src.main --repo-path /path/to/repo --commit HEAD
+
+# Run tests
+uv run run_tests.py
+
+# Or run directly with pytest
+uv run pytest
+```
+
+The test suite covers:
+- **Parser tests**: C code parsing, function extraction, call graph construction
+- **Impact analysis**: Line-to-function mapping, upstream/downstream traversal
+- **Git integration**: Diff parsing and commit analysis
+- **Path utilities**: Cross-platform filename sanitization and URL generation
+
 Alternatively, using a virtual environment:
 
 ```bash
@@ -75,7 +105,7 @@ pip install -e .
 Run ImpactScope against a repository and a commit:
 
 ```bash
-uv run main.py --repo-path ../your-c-project --commit HEAD
+uv run -m src.main --repo-path ../your-c-project --commit HEAD
 ```
 
 ### Common options
@@ -93,7 +123,7 @@ If a commit contains no relevant C changes, ImpactScope reports this explicitly.
 When using `--output json`, ImpactScope emits a structured JSON document suitable for CI, automation, and downstream tooling:
 
 ```bash
-uv run main.py --repo-path ../your-c-project --commit HEAD --output json
+uv run -m src.main --repo-path ../your-c-project --commit HEAD --output json
 ```
 
 **JSON Schema:**
@@ -164,15 +194,15 @@ ImpactScope processes C code changes in a structured pipeline, from diff analysi
 
 ```mermaid
 graph TD
-    A[Git Repo + Commit] --> B[git_diff.py<br/>Extract Changed Lines]
-    B --> C[parser.py<br/>AST Parser<br/>Tree-sitter]
-    C --> D[call_graph.py<br/>Build Call Graph<br/>NetworkX]
-    C --> E[impact_mapper.py<br/>Map Lines to Functions]
-    E --> F[call_mapper.py<br/>Extract Function Calls]
-    D --> G[impact_mapper.py<br/>Upstream/Downstream Analysis]
+    A[Git Repo + Commit] --> B[src/core/git_diff.py<br/>Extract Changed Lines]
+    B --> C[src/core/parser.py<br/>AST Parser<br/>Tree-sitter]
+    C --> D[src/core/call_graph.py<br/>Build Call Graph<br/>NetworkX]
+    C --> E[src/core/impact_mapper.py<br/>Map Lines to Functions]
+    E --> F[src/core/call_mapper.py<br/>Extract Function Calls]
+    D --> G[src/core/impact_mapper.py<br/>Upstream/Downstream Analysis]
     F --> G
-    G --> H[cli.py<br/>CLI Presentation]
-    G --> I[visualization.py<br/>HTML Graph Generation]
+    G --> H[src/cli/cli.py<br/>CLI Presentation]
+    G --> I[src/visualization/visualization.py<br/>HTML Graph Generation]
     H --> J[Terminal Output]
     I --> K[HTML Artifacts]
 ```
@@ -185,15 +215,29 @@ The pipeline flow:
 4. **Graph modeling** – Represent relationships using NetworkX
 5. **Presentation** – Expose results via a clean CLI interface (and optional HTML graph)
 
-Key modules:
+## Code Organization
 
-- `git_diff.py` – Commit-aware diff extraction
-- `parser.py` – Tree-sitter–based C parser
-- `impact_mapper.py` – Maps code changes to functions and computes upstream/downstream impact
+ImpactScope follows a modular architecture with clear separation of concerns:
+
+### Core Analysis (`src/core/`)
+- `parser.py` – Tree-sitter–based C parser for AST analysis
+- `impact_mapper.py` – Maps code changes to functions and computes impact propagation
 - `call_mapper.py` – Extracts function call relationships
-- `call_graph.py` – Graph construction utilities
-- `visualization.py` – PyVis-based HTML visualization of the call graph
-- `cli.py` – User-facing command-line interface
+- `call_graph.py` – Graph construction and analysis utilities
+- `git_diff.py` – Commit-aware diff extraction and parsing
+- `constants.py` – Shared constants and configuration
+
+### Utilities (`src/utils/`)
+- `path_utils.py` – Cross-platform path handling and filename sanitization
+
+### Output (`src/output/`)
+- `json_output.py` – JSON serialization and formatting for CI/automation
+
+### CLI (`src/cli/`)
+- `cli.py` – Command-line interface and user interaction
+
+### Visualization (`src/visualization/`)
+- `visualization.py` – Optional HTML call graph generation
 
 ---
 
