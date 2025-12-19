@@ -63,37 +63,69 @@ def get_commit_diff(
 
             patch_lines = decoded_content.replace("\r\n", "\n").split("\n")
 
-            for line in patch_lines:
-                if line.startswith("@@"):
-                    parts = line.split()
-                    # Format: @@ -old_start,old_count +new_start,new_count @@
-                    # We want to capture changed lines, preferring additions over deletions
-                    added_part = None
-                    deleted_part = None
-
-                    for part in parts[1:]:  # Skip @@
+            # Parse hunk by hunk to find actual changed lines
+            i = 0
+            changed_lines: set[Tuple[int, int]] = set()
+            while i < len(patch_lines):
+                if patch_lines[i].startswith("@@"):
+                    # Parse hunk header to get the new file line offset
+                    parts = patch_lines[i].split()
+                    new_start_line = None
+                    for part in parts[1:]:
                         if part.startswith("+"):
-                            added_part = part
-                        elif part.startswith("-"):
-                            deleted_part = part
+                            # Extract the starting line number in the new file
+                            try:
+                                new_start_line = int(part.split(",")[0][1:])
+                                break
+                            except (ValueError, IndexError):
+                                continue
 
-                    # For additions: use the + part
-                    # For pure deletions (no additions): use the - part
-                    if added_part and not added_part.endswith("/dev/null"):
-                        target_part = added_part
-                    elif deleted_part and not deleted_part.endswith("/dev/null"):
-                        target_part = deleted_part
-                    else:
+                    if new_start_line is None:
+                        i += 1
                         continue
 
-                    start_line = int(target_part.split(",")[0][1:])
-                    line_count = (
-                        int(target_part.split(",")[1]) if "," in target_part else 1
-                    )
-                    if line_count > 0:
-                        end_line = start_line + line_count - 1
-                        hunks.append((start_line, end_line))
+                    # Parse the hunk content to find actual changed lines
+                    i += 1  # Move to first line after header
+                    current_line = new_start_line
 
-            diff_data[path_str] = hunks
+                    while i < len(patch_lines) and not patch_lines[i].startswith("@@"):
+                        line = patch_lines[i]
+                        if line.startswith("+") or line.startswith("-"):
+                            # This is an added or deleted line - record it as a changed line
+                            changed_lines.add((current_line, current_line))
+                            if line.startswith("+"):
+                                current_line += 1
+                            # Note: deleted lines don't advance the line counter for the new file
+                        elif not line.startswith("\\"):
+                            # This is a context line
+                            current_line += 1
+
+                        i += 1
+                else:
+                    i += 1
+
+            # Group consecutive changed lines into ranges
+            if changed_lines:
+                sorted_lines = sorted(changed_lines)
+                grouped_ranges = []
+                start_line = end_line = sorted_lines[0][
+                    0
+                ]  # Get the line number from (line, line) tuple
+
+                for line_tuple in sorted_lines[1:]:
+                    current_line = line_tuple[0]
+                    if current_line == end_line + 1:
+                        # Consecutive line, extend the range
+                        end_line = current_line
+                    else:
+                        # Gap found, save current range and start new one
+                        grouped_ranges.append((start_line, end_line))
+                        start_line = end_line = current_line
+
+                # Add the last range
+                grouped_ranges.append((start_line, end_line))
+                diff_data[path_str] = grouped_ranges
+            else:
+                diff_data[path_str] = []
 
     return diff_data

@@ -154,7 +154,7 @@ def get_function_nodes(file_path: str) -> List[FunctionNode]:
         """
         (function_definition
             declarator: (function_declarator
-                declarator: (identifier) @func_name))
+                declarator: (identifier) @func_name)) @func_def
         """,
     )
     cursor = QueryCursor(query)
@@ -162,12 +162,29 @@ def get_function_nodes(file_path: str) -> List[FunctionNode]:
 
     functions: List[FunctionNode] = []
     for _, captures_dict in matches:
-        if "func_name" in captures_dict:
-            for node in captures_dict["func_name"]:
-                func_name = _normalize_name(code[node.start_byte : node.end_byte])
-                start_line = node.start_point[0] + 1  # Tree-sitter lines start at 0
-                end_line = node.end_point[0] + 1
-                functions.append(
-                    {"name": func_name, "start": start_line, "end": end_line}
+        if "func_name" in captures_dict and "func_def" in captures_dict:
+            func_name_nodes = captures_dict["func_name"]
+            func_def_nodes = captures_dict["func_def"]
+
+            # Match function names to their definitions
+            for func_name_node in func_name_nodes:
+                func_name = _normalize_name(
+                    code[func_name_node.start_byte : func_name_node.end_byte]
                 )
+
+                # Find the corresponding function definition node
+                for func_def_node in func_def_nodes:
+                    # Check if this function definition contains our function name
+                    if (
+                        func_def_node.start_byte <= func_name_node.start_byte
+                        and func_name_node.end_byte <= func_def_node.end_byte
+                    ):
+                        start_line = (
+                            func_def_node.start_point[0] + 1
+                        )  # Tree-sitter lines start at 0
+                        end_line = func_def_node.end_point[0] + 1
+                        functions.append(
+                            {"name": func_name, "start": start_line, "end": end_line}
+                        )
+                        break
     return functions

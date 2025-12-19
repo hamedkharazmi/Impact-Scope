@@ -242,12 +242,12 @@ int main() {
             # Find foo function
             foo_node = next(node for node in nodes if node["name"] == "foo")
             assert foo_node["start"] == 3  # Line 3: void foo()
-            assert foo_node["end"] == 3  # Same line for single-line function
+            assert foo_node["end"] == 5  # Line 5: }
 
             # Find main function
             main_node = next(node for node in nodes if node["name"] == "main")
             assert main_node["start"] == 7  # Line 7: int main()
-            assert main_node["end"] == 7  # Same line
+            assert main_node["end"] == 10  # Line 10: }
 
         finally:
             file_path.unlink()
@@ -264,7 +264,7 @@ int main() {
         try:
             nodes = get_function_nodes(str(file_path))
             func_node = next(node for node in nodes if node["name"] == "multiline")
-            assert func_node["start"] == 1
-            assert func_node["end"] == 1  # Tree-sitter might report single line
+            assert func_node["start"] == 1  # Line 1: void multiline() {
+            assert func_node["end"] == 5  # Line 5: }
         finally:
             file_path.unlink()

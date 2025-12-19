@@ -49,7 +49,7 @@ index 1234567..abcdef0 100644
             result = get_commit_diff("/fake/path", "abc123")
 
             assert "src/main.c" in result
-            assert result["src/main.c"] == [(1, 5)]
+            assert result["src/main.c"] == [(4, 4)]
 
     def test_commit_with_multiple_hunks(self):
         """Test parsing a commit with multiple change hunks."""
@@ -86,7 +86,46 @@ index 1234567..abcdef0 100644
             result = get_commit_diff("/fake/path", "abc123")
 
             assert "src/utils.c" in result
-            assert set(result["src/utils.c"]) == {(10, 12), (20, 22)}
+            assert set(result["src/utils.c"]) == {(11, 11), (21, 21)}
+
+    def test_commit_with_consecutive_changes(self):
+        """Test parsing a commit with consecutive changed lines."""
+        mock_commit = Mock()
+        mock_parent = Mock()
+        mock_commit.parents = [mock_parent]
+
+        mock_diff = Mock()
+        mock_diff.a_path = "src/main.c"
+        mock_diff.b_path = "src/main.c"
+        mock_diff.diff.decode.return_value = """diff --git a/src/main.c b/src/main.c
+index 1234567..abcdef0 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -5,6 +5,6 @@
+ int func() {
+-    printf("line 1");
+-    printf("line 2");
+-    printf("line 3");
++    printf("modified line 1");
++    printf("modified line 2");
++    printf("modified line 3");
+     printf("line 4");
+     return 0;
+ }
+"""
+
+        mock_commit.diff.return_value = [mock_diff]
+
+        with patch("src.core.git_diff.Repo") as mock_repo_class:
+            mock_repo = Mock()
+            mock_repo_class.return_value = mock_repo
+            mock_repo.commit.return_value = mock_commit
+
+            result = get_commit_diff("/fake/path", "abc123")
+
+            assert "src/main.c" in result
+            # Consecutive lines 6, 7, 8 should be grouped into (6, 8)
+            assert result["src/main.c"] == [(6, 8)]
 
     def test_commit_with_header_file_changes(self):
         """Test parsing a commit with header file changes."""
@@ -117,7 +156,7 @@ index 1234567..abcdef0 100644
             result = get_commit_diff("/fake/path", "abc123")
 
             assert "include/utils.h" in result
-            assert result["include/utils.h"] == [(5, 7)]
+            assert result["include/utils.h"] == [(6, 6)]
 
     def test_commit_with_no_c_changes(self):
         """Test parsing a commit with no C/C++ file changes."""
@@ -192,7 +231,7 @@ index 1234567..abcdef0 100644
             result = get_commit_diff("/fake/path", "abc123")
 
             assert "src/main.c" in result
-            assert result["src/main.c"] == [(1, 2)]
+            assert result["src/main.c"] == [(2, 2)]
             assert "README.md" not in result
 
     def test_invalid_commit_hash(self):

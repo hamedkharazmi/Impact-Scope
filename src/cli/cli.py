@@ -83,6 +83,7 @@ def analyze(
 
         call_map = map_calls_for_impacted_functions(file, impacted_funcs, repo_path)
 
+        # Compute combined upstream/downstream for JSON output and visualization
         downstream: Set[str] = collect_downstream_calls(graph, impacted_funcs, depth)
         upstream: Set[str] = collect_upstream_calls(graph, impacted_funcs, depth)
 
@@ -99,25 +100,31 @@ def analyze(
                 )
             )
         else:
-            # Terminal-friendly text output
+            # Terminal-friendly text output - compute relationships per function
             console.print(f"\n[bold cyan]{file}[/bold cyan]  Changed lines: {hunks}")
 
             for func in impacted_funcs:
                 tree = Tree(fmt_func(func), guide_style="bold bright_blue")
 
-                if upstream:
+                # Compute upstream and downstream for this specific function
+                func_upstream: Set[str] = collect_upstream_calls(graph, [func], depth)
+                func_downstream: Set[str] = collect_downstream_calls(
+                    graph, [func], depth
+                )
+
+                if func_upstream:
                     up_branch = tree.add(
                         "Upstream (calls this function)", guide_style="green"
                     )
-                    for up_func in sorted(upstream):
+                    for up_func in sorted(func_upstream):
                         if up_func != func:
                             up_branch.add(fmt_func(up_func))
 
-                if downstream:
+                if func_downstream:
                     down_branch = tree.add(
                         "Downstream (called by this function)", guide_style="magenta"
                     )
-                    for down_func in sorted(downstream):
+                    for down_func in sorted(func_downstream):
                         if down_func != func:
                             down_branch.add(fmt_func(down_func))
 
