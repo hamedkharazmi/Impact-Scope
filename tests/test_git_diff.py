@@ -258,10 +258,10 @@ index 0000000..1234567
 --- /dev/null
 +++ b/src/main.c
 @@ -0,0 +1,5 @@
- #include <stdio.h>
- int main() {
-     return 0;
- }
++#include <stdio.h>
++int main() {
++    return 0;
++}
 """
 
         mock_commit.diff.return_value = [mock_diff]
@@ -274,7 +274,7 @@ index 0000000..1234567
             result = get_commit_diff("/fake/path", "initial")
 
             assert "src/main.c" in result
-            assert result["src/main.c"] == [(1, 5)]
+            assert result["src/main.c"] == [(1, 4)]
 
     def test_renamed_file(self):
         """Test handling of renamed files."""
