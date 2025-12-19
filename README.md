@@ -18,9 +18,17 @@ ImpactScope is intentionally developed in **phases**, each solving a concrete su
 
 This cannot be reliably solved with a single method. ImpactScope follows a layered approach inspired by both industry practice and research: combining static structure, dynamic coverage, heuristics, and learned prioritization.
 
+This section covers:
+
+- [<a href="#phase1">Phase 1</a>] — Deterministic Static Impact Analysis (Implemented)
+- [<a href="#phase2">Phase 2</a>] — Test Awareness & Coverage Mapping (Next Step)
+- [<a href="#phase3">Phase 3</a>] — Test Selection & Confidence Modeling (Planned)
+- [<a href="#phase4">Phase 4</a>] — Learning & AI Assistance (Optional, Assistive)
+
 ---
 
-## Phase 1 — Deterministic Static Impact Analysis (Implemented)
+<a id="phase1"></a>
+### Phase 1 — Deterministic Static Impact Analysis (Implemented)
 
 **Goal:** Identify which parts of the codebase are _structurally impacted_ by a change.
 
@@ -53,7 +61,8 @@ Static impact analysis provides a **safe upper bound** — it may include extra 
 
 ---
 
-## Phase 2 — Test Awareness & Coverage Mapping (Next Step)
+<a id="phase2"></a>
+### Phase 2 — Test Awareness & Coverage Mapping (Next Step)
 
 **Goal:** Link impacted code to the tests that actually execute it.
 
@@ -85,7 +94,8 @@ After this phase, ImpactScope can answer:
 
 ---
 
-## Phase 3 — Test Selection & Confidence Modeling (Planned)
+<a id="phase3"></a>
+### Phase 3 — Test Selection & Confidence Modeling (Planned)
 
 **Goal:** Decide _which tests to execute first_, and with what confidence level.
 
@@ -127,7 +137,8 @@ After this phase, ImpactScope can answer:
 
 ---
 
-## Phase 4 — Learning & AI Assistance (Optional, Assistive)
+<a id="phase4"></a>
+### Phase 4 — Learning & AI Assistance (Optional, Assistive)
 
 AI/ML is **not part of core deterministic analysis**; it _augments_ structured signals (impact + coverage + history) to make smarter prioritization decisions over time. Predictive test selection uses historical code changes and test outcomes to estimate which tests are likely to detect regressions for new changes.
 
