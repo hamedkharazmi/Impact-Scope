@@ -1,45 +1,183 @@
 # ImpactScope
 
-**ImpactScope** is a developer-first **Change Impact Analysis (CIA)** tool for large C codebases.
+**ImpactScope** is a developer-first **Change Impact Analysis (CIA)** tool for large C codebases, designed as a foundation for **change-based test selection and prioritization**.
 
-Given a Git commit (or diff), ImpactScope performs deterministic static analysis to answer a simple but expensive question:
+Given a Git commit (or diff), ImpactScope performs deterministic static analysis to answer a deceptively complex question:
 
-> **For this change, what code is impacted — and what should I review or test?**
+> **For a code change, which parts of the code are impacted — and which tests should run?**
 
-It bridges Git diffs, AST-level code structure, and call-graph analysis to compute the *blast radius* of a change.
-
----
-
-## Why ImpactScope Exists
-
-In large C projects, even small changes can have non-obvious downstream effects:
-
-- A modified helper function may impact dozens of callers
-- A seemingly local refactor can propagate across modules
-- Running the full test suite is slow and often unnecessary
-
-Industrial tools (e.g. certification-grade Change Impact Analysis systems) solve this problem, but are:
-
-- Enterprise-focused
-- GUI-heavy
-- Closed-source
-- Expensive and hard to integrate into modern CI workflows
-
-**ImpactScope focuses on the same core problem, but with a developer-first mindset.**
+ImpactScope bridges Git diffs, AST-level code structure, and call-graph analysis to compute the _blast radius_ of a change. Its long-term goal is to enable selective testing in CI/CD workflows, minimizing test costs while preserving confidence.
 
 ---
 
-## Current Capabilities
+## Project Scope & Phased Approach
 
-- Commit-aware change detection (Git diff parsing)
-- Line-to-function mapping via AST (Tree-sitter)
+ImpactScope is intentionally developed in **phases**, each solving a concrete sub-problem toward the broader goal of *impact-based test selection*. The core question is:
+
+> _Given a code change, which tests must be re-run to maintain confidence — without running the entire suite?_
+
+This cannot be reliably solved with a single method. ImpactScope follows a layered approach inspired by both industry practice and research: combining static structure, dynamic coverage, heuristics, and learned prioritization.
+
+---
+
+## Phase 1 — Deterministic Static Impact Analysis (Implemented)
+
+**Goal:** Identify which parts of the codebase are _structurally impacted_ by a change.
+
+This phase answers:
+
+> _Which code could be affected by this change, based purely on program structure?_
+
+### Implemented in ImpactScope
+
+- Git diff parsing with precise line ranges
+- AST function extraction (Tree-sitter)
 - Function-level call graph construction
-- **Downstream impact analysis** (functions called by a change)
-- **Upstream impact analysis** (functions that call into a change)
+- **Downstream impact analysis** (calls from changed code)
+- **Upstream impact analysis** (calls into changed code)
 - Depth-limited traversal to control noise
-- Basic standard-library filtering
+- Standard-library filtering
 - CLI-first workflow
-- Optional HTML call-graph visualization
+- Optional HTML visualization
+
+### Why this phase matters
+
+Static impact analysis provides a **safe upper bound** — it may include extra results, but avoids missing potential impacts. This deterministic foundation is essential before practical test selection can be attempted.
+
+✨ **Technical Building Blocks (Phase 1)**
+
+- Git diff parsing and line/function mapping
+- Tree-sitter AST extraction
+- Call graph construction
+- Impact propagation (upstream/downstream)
+
+---
+
+## Phase 2 — Test Awareness & Coverage Mapping (Next Step)
+
+**Goal:** Link impacted code to the tests that actually execute it.
+
+Static analysis alone can only _suggest possible impact paths_. To make ImpactScope practically useful, it must become **test-aware** by incorporating _coverage data_ — dynamically measured information about which tests exercise which parts of the code.
+
+### What this adds
+
+- Per-test coverage collection (e.g., via coverage tools)
+- Mapping between:
+  - functions/files
+  - and tests that cover them
+- Combining static impact with dynamic coverage
+
+### What this enables
+
+- Selection of tests that truly execute impacted code
+- Avoidance of unrelated test runs
+- A test-to-change dependency matrix for prioritization
+
+After this phase, ImpactScope can answer:
+
+> _Which tests are directly affected by a change?_
+
+✨ **Technical Building Blocks (Phase 2)**
+
+- Coverage collection (gcov/lcov or similar)
+- Test → code mapping
+- Integration of coverage with impact data
+
+---
+
+## Phase 3 — Test Selection & Confidence Modeling (Planned)
+
+**Goal:** Decide _which tests to execute first_, and with what confidence level.
+
+Static impact + coverage gives a list of relevant tests. But _ordering and prioritizing_ those tests optimally is a core challenge in regression testing and continuous integration. Research and practices in test prioritization show that ordering tests to detect faults early and minimize execution time is crucial.
+
+### Methods & Strategy
+
+**1. Coverage-Driven Test Selection**
+Select tests that cover the changed code as a baseline — tests that execute impacted code are most relevant.
+
+**2. Prioritization Metrics**
+Tests can be scored by:
+- **execution cost** (faster tests first)
+- **coverage weight** (how much impacted code they exercise)
+- **historical relevance** (e.g., tests that usually detect regressions)
+
+**3. Confidence Scoring**
+Reflect how well selected tests cover impacted code, enabling quality gates (e.g., stop when enough coverage confidence is reached).
+
+**4. Test Staging**
+Group tests into stages (smoke, regression, integration) based on priority and coverage depth.
+
+✨ **Technical Building Blocks (Phase 3)**
+
+- Coverage maps (test → code)
+- Greedy and weighted algorithms for prioritization (e.g., additional coverage, set-cover heuristics)
+- Heuristics combining impact, coverage, cost, and risk
+- Confidence scoring and thresholds
+
+### What this phase enables
+
+- _Ranked_ test lists rather than undifferentiated sets
+- Fast detection of likely regressions with minimal execution
+- Adaptive strategies based on test cost and impact coverage
+
+After this phase, ImpactScope can answer:
+
+> _Which tests should run first, and with what confidence?_
+
+---
+
+## Phase 4 — Learning & AI Assistance (Optional, Assistive)
+
+AI/ML is **not part of core deterministic analysis**; it _augments_ structured signals (impact + coverage + history) to make smarter prioritization decisions over time. Predictive test selection uses historical code changes and test outcomes to estimate which tests are likely to detect regressions for new changes.
+
+### Where AI/ML Can Help
+
+**1. Historical Dataset**
+Collect over time:
+- change features (which files/functions changed)
+- test outcomes (pass/fail history)
+- coverage and prioritization results
+This dataset serves as the basis for ML modeling.
+
+**2. Predictive Models**
+Train supervised models (e.g., tree ensembles, logistic regression, or neural networks) to predict _failure likelihood_ for each test given a code change. Features can include:
+- coverage overlap with impacted code
+- historical failure rates
+- test execution cost
+Models can output probabilities used for ordering tests or deciding thresholds where deeper testing is needed.
+
+**3. Retraining & Adaptation**
+Continuously retrain models as:
+- new tests are added/removed
+- code and test suites evolve
+- more outcome data accumulates
+This ensures the model adapts to changes in the codebase and testing patterns.
+
+**4. Assistive AI Usages**
+In addition to predictive models, AI (e.g., language models) can provide:
+- **natural language explanations** of why tests were prioritized
+- **confidence insights** supporting decision-making
+- **recommendations** for areas needing stronger coverage
+
+These AI outputs augment explainability and help developers interpret results — they do _not_ replace core decisions.
+
+✨ **Technical Building Blocks (Phase 4)**
+
+- Historical dataset (change + test outcomes + coverage + priority results)
+- Predictive models that output failure likelihood for tests
+- Model retraining and adaptation over time
+- AI for human-oriented reporting and insights (explanations, summaries)
+
+### Explicit Non-Goals
+
+- Replacing core impact logic with black-box AI
+- Making test decisions solely based on prediction
+- Sacrificing explainability for opaque models
+
+AI/ML here _enhances_ deterministic logic and prioritization without replacing it.
+
+**This roadmap is intended to show awareness and design thinking, not fixed commitments. ImpactScope remains an MVP focused on building a correct, deterministic foundation before exploring advanced capabilities.**
 
 ---
 
@@ -58,30 +196,6 @@ uv sync
 ```
 
 This installs dependencies from `pyproject.toml` and manages the virtual environment automatically.
-
-### Testing
-
-ImpactScope includes a comprehensive test suite covering the core static analysis functionality.
-
-For development, install additional dependencies:
-```bash
-uv sync --extra test --extra dev
-```
-
-Run tests:
-```bash
-# Run the full test suite
-uv run run_tests.py
-
-# Or run directly with pytest
-uv run pytest
-```
-
-The test suite covers:
-- **Parser tests**: C code parsing, function extraction, call graph construction
-- **Impact analysis**: Line-to-function mapping, upstream/downstream traversal
-- **Git integration**: Diff parsing and commit analysis
-- **Path utilities**: Cross-platform filename sanitization and URL generation
 
 Alternatively, using a virtual environment:
 
@@ -112,70 +226,9 @@ uv run -m src.main --repo-path ../your-c-project --commit HEAD
 
 If a commit contains no relevant C changes, ImpactScope reports this explicitly.
 
-### JSON Output
+### Output Formats
 
-When using `--output json`, ImpactScope emits a structured JSON document suitable for CI, automation, and downstream tooling:
-
-```bash
-uv run -m src.main --repo-path ../your-c-project --commit HEAD --output json
-```
-
-**JSON Schema:**
-
-```json
-{
-  "schema_version": "1.0.0",
-  "repo_path": "../your-c-project",
-  "commit": "HEAD",
-  "depth": 1,
-  "files": [
-    {
-      "file": "src/foo.c",
-      "changed_functions": ["foo", "bar"],
-      "downstream": ["baz", "qux"],
-      "upstream": ["main"],
-      "depth": 1,
-      "changed_lines": [
-        {"start": 10, "end": 15},
-        {"start": 20, "end": 25}
-      ]
-    }
-  ]
-}
-```
-
-**Fields:**
-- `schema_version`: Version of the output schema for compatibility tracking
-- `repo_path`: Repository path that was analyzed
-- `commit`: Commit hash or ref that was analyzed
-- `depth`: Analysis depth used
-- `files`: Array of per-file impact analysis results
-  - `file`: Source file path relative to repository root
-  - `changed_functions`: Functions directly affected by the commit
-  - `downstream`: Functions potentially impacted downstream (called by changed functions)
-  - `upstream`: Functions calling into the changed code
-  - `changed_lines`: Line ranges that changed (optional, included when available)
-
-### Example output
-
-```text
-src/auth/auth.c  Changed lines: [(5, 10)]
-login_user
-┣━━ Upstream (calls this function)
-┃   ┗━━ handle_request
-┗━━ Downstream (called by this function)
-    ┣━━ connect_db
-    ┣━━ printf
-    ┗━━ query_user
-
-src/net/net.c  Changed lines: [(3, 8)]
-handle_request
-┣━━ Upstream (calls this function)
-┃   ┗━━ main
-┗━━ Downstream (called by this function)
-    ┣━━ login_user
-    ┗━━ printf
-```
+ImpactScope supports two output formats: **text** (human-readable terminal output) and **JSON** (machine-readable for automation). For detailed examples and schema information, see the **[User Guide](docs/user-guide.md#understanding-output)**.
 
 This shows both **who depends on the changed function** (upstream) and **what it depends on** (downstream), giving a concrete view of how a change propagates through the system.
 
@@ -183,67 +236,7 @@ This shows both **who depends on the changed function** (upstream) and **what it
 
 ## Architecture Overview
 
-ImpactScope processes C code changes in a structured pipeline, from diff analysis to impact visualization:
-
-
-```mermaid
-graph TD
-    A[Git Repo + Commit] --> B[src/core/git_diff.py<br/>Extract Changed Lines]
-    B --> C[src/core/parser.py<br/>AST Parser<br/>Tree-sitter]
-    C --> D[src/core/call_graph.py<br/>Build Call Graph<br/>NetworkX]
-    C --> E[src/core/impact_mapper.py<br/>Map Lines to Functions]
-    E --> F[src/core/call_mapper.py<br/>Extract Function Calls]
-    D --> G[src/core/impact_mapper.py<br/>Upstream/Downstream Analysis]
-    F --> G
-    G --> H[src/cli/cli.py<br/>CLI Presentation]
-    G --> I[src/visualization/visualization.py<br/>HTML Graph Generation]
-    H --> J[Terminal Output]
-    I --> K[HTML Artifacts]
-```
-
-The pipeline flow:
-
-1. **Git diff analysis** – Identify changed files and line ranges
-2. **AST parsing** – Locate functions and call expressions using Tree-sitter
-3. **Impact mapping** – Map changes to functions and propagate through calls
-4. **Graph modeling** – Represent relationships using NetworkX
-5. **Presentation** – Expose results via a clean CLI interface (and optional HTML graph)
-
-## Code Organization
-
-ImpactScope follows a modular architecture with clear separation of concerns:
-
-### Core Analysis (`src/core/`)
-- `parser.py` – Tree-sitter–based C parser for AST analysis
-- `impact_mapper.py` – Maps code changes to functions and computes impact propagation
-- `call_mapper.py` – Extracts function call relationships
-- `call_graph.py` – Graph construction and analysis utilities
-- `git_diff.py` – Commit-aware diff extraction and parsing
-- `constants.py` – Shared constants and configuration
-
-### Utilities (`src/utils/`)
-- `path_utils.py` – Cross-platform path handling and filename sanitization
-
-### Output (`src/output/`)
-- `json_output.py` – JSON serialization and formatting for CI/automation
-
-### CLI (`src/cli/`)
-- `cli.py` – Command-line interface and user interaction
-
-### Visualization (`src/visualization/`)
-- `visualization.py` – Optional HTML call graph generation
-
----
-
-## Design Philosophy
-
-- **Determinism over magic**
-- **Static analysis first, AI second**
-- **Explainability over prediction**
-- **Project-level reasoning over file-level diffs**
-- **CLI and automation over GUI-heavy workflows**
-
-This approach mirrors how industrial Change Impact Analysis tools are built, while remaining lightweight and developer-friendly.
+ImpactScope processes C code changes through a structured pipeline: Git diff analysis → AST parsing → call graph construction → impact propagation → results presentation. The codebase follows a modular architecture with clear separation of concerns across core analysis, utilities, output formatting, CLI, and visualization components. For detailed technical information, see the **[Architecture Guide](docs/architecture.md)**.
 
 ---
 
@@ -263,67 +256,9 @@ For more detailed information, see our comprehensive documentation:
 
 ---
 
-## Future Directions
-
-ImpactScope is currently an MVP focused on correctness, determinism, and architectural clarity.
-The following items outline possible next steps and directions, based on review of industrial Change Impact Analysis tools and real-world workflows. They are intentionally non-binding and exploratory.
-
-### Near-Term Extensions (Natural Next Steps)
-
-These represent obvious follow-ups once deterministic impact data is available.
-
-- Impact scoring and basic risk categorization (e.g. LOW / MEDIUM / HIGH)
-- Human-readable summaries explaining why a change is risky
-- Noise reduction heuristics to prioritize relevant impact paths
-- Improved output formatting for CI and automation use
-
-### Industry-Inspired Capabilities (Observed in Mature Tools)
-
-Based on reviewing established CIA tools (e.g. certification-grade and enterprise systems), potential directions include:
-
-- Change-based test selection and prioritization
-- Baseline-to-baseline impact comparison
-- Cross-module and system-level impact aggregation
-- Lightweight traceability between changes, impact, and tests
-
-These are not goals of the MVP, but provide context for how ImpactScope could evolve.
-
-### AI-Assisted Enhancements (Optional & Assistive)
-
-AI is considered only as a supporting layer, not part of core analysis.
-
-Possible roles include:
-
-- Explaining impact paths and propagation in natural language
-- Suggesting review or testing focus areas
-- Summarizing impact results for CI or pull request discussions
-
-Beyond LLMs, learning-based approaches could be explored in the future:
-
-- Learning which impact patterns are frequently low-risk vs high-risk
-- Ranking or prioritizing impact paths based on historical data
-- Assisting in noise reduction without removing deterministic results
-
-AI components would operate strictly on top of structured output, not replace static analysis.
-
-### Long-Term Outlook
-
-If ImpactScope grows beyond MVP scope, longer-term directions may include:
-
-- Data-flow or control-flow–aware impact propagation
-- Scalable graph backends for large codebases
-- Support for additional languages
-
-**Positioning Note**
-
-This roadmap is intended to show awareness and design thinking, not fixed commitments.
-ImpactScope remains an MVP focused on building a correct, deterministic foundation before exploring advanced capabilities.
-
----
-
 ## Status
 
-ImpactScope is currently a **working prototype** under active development.
+ImpactScope has **Phase 1 (Deterministic Static Impact Analysis) fully implemented** and ready for use. It's currently under active development with additional phases planned.
 
 The focus so far has been on **correctness, clarity, and architectural soundness** rather than feature completeness. The goal is to evolve ImpactScope into a **portfolio-grade Change Impact Analysis tool** that demonstrates:
 

@@ -1,10 +1,10 @@
 # Getting Started with ImpactScope
 
-**ImpactScope** is a developer-first **Change Impact Analysis (CIA)** tool for large C codebases.
+**ImpactScope** is a developer-first **Change Impact Analysis (CIA)** tool for large C codebases, designed as a foundation for **change-based test selection and prioritization**.
 
-Given a Git commit (or diff), ImpactScope performs deterministic static analysis to answer a simple but expensive question:
+Given a Git commit (or diff), ImpactScope performs deterministic static analysis to answer a deceptively complex question:
 
-> **For this change, what code is impacted — and what should I review or test?**
+> **For a code change, which parts of the code are impacted — and which tests should run?**
 
 ## Quick Installation
 
