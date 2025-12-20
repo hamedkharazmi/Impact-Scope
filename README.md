@@ -59,6 +59,15 @@ Static impact analysis provides a **safe upper bound** — it may include extra 
 - Call graph construction
 - Impact propagation (upstream/downstream)
 
+### Limitations / Known Issues
+
+While Phase 1 provides a solid foundation for static impact analysis, it has the following limitations:
+
+- **Over-approximation / False positives:** The analysis lists all code that *might* be affected, not necessarily what *actually* will be impacted.
+- **No runtime data/control-flow awareness:** Branches, loops, and data-dependent execution paths are not modeled, so actual program behavior may differ.
+- **Incomplete handling of function pointers and complex C constructs:** Indirect calls, callbacks, macros, and inline assembly may be missed or misattributed in the call graph.
+- **Scalability and noise:** Depth limits help reduce noise, but very large or macro-heavy codebases may still produce extensive impact sets.
+
 ---
 
 <a id="phase2"></a>
@@ -264,16 +273,3 @@ For more detailed information, see our comprehensive documentation:
 - **[Contributing](docs/contributing.md)** - Development setup and guidelines
 - **[Roadmap](docs/roadmap.md)** - Future directions and vision
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and debugging
-
----
-
-## Status
-
-ImpactScope has **Phase 1 (Deterministic Static Impact Analysis) fully implemented** and ready for use. It's currently under active development with additional phases planned.
-
-The focus so far has been on **correctness, clarity, and architectural soundness** rather than feature completeness. The goal is to evolve ImpactScope into a **portfolio-grade Change Impact Analysis tool** that demonstrates:
-
-- Static analysis fundamentals
-- Call graph reasoning
-- Deterministic tooling design
-- Realistic CI and developer workflows
