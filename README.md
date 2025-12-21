@@ -59,14 +59,19 @@ Static impact analysis provides a **safe upper bound** — it may include extra 
 - Call graph construction
 - Impact propagation (upstream/downstream)
 
-### Limitations / Known Issues
+### Challenges in C Codebases
 
-While Phase 1 provides a solid foundation for static impact analysis, it has the following limitations:
+C, especially in low-level and driver code, introduces inherent challenges for static impact analysis:
 
-- **Over-approximation / False positives:** The analysis lists all code that *might* be affected, not necessarily what *actually* will be impacted.
-- **No runtime data/control-flow awareness:** Branches, loops, and data-dependent execution paths are not modeled, so actual program behavior may differ.
-- **Incomplete handling of function pointers and complex C constructs:** Indirect calls, callbacks, macros, and inline assembly may be missed or misattributed in the call graph.
-- **Scalability and noise:** Depth limits help reduce noise, but very large or macro-heavy codebases may still produce extensive impact sets.
+- **Extensive use of pointers and indirect calls**
+- **Data-dependent control flow**
+- **Macros and conditional compilation**
+- **Inline assembly and platform-specific behavior**
+
+These issues make precise, scalable change impact analysis difficult. and addressing the limitations of static impact analysis in large C codebases requires multiple layers.
+For a detailed discussion of these challenges, related research, and practical strategies to address them, see:
+
+➡️ **[Design Notes: Addressing Challenges in C Codebases](docs/analysis-roadmap.md)**
 
 ---
 
